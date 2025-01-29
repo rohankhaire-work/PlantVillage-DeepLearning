@@ -1,0 +1,30 @@
+# model_hyperparameters.yaml
+model:
+  dataset: PlantVillage
+  name: CNN
+  hyperparameters:
+    optimizer:
+      type: SGD
+      learning_rate: 0.001
+    loss: crossentropy
+    metrics:
+      - accuracy
+      - top_k_categorical_accuracy
+
+training:
+  use_wandb: True
+  batch_size: 32
+  epochs: 100
+  early_stopping:
+    monitor: val_loss
+    patience: 4
+    save_path: "checkpoint/best_model.pth"
+
+data:
+  directory_root: "data/PlantVillage"
+  augmentation:
+    horizontal_flip: True
+    rotation_range: 20
+    resize: 256
+    random_rotation: 30
+    normalize: true
