@@ -11,20 +11,25 @@ model:
       - accuracy
       - top_k_categorical_accuracy
 
+transfer_learning:
+  resnet: False        # ResNet-50
+  mobilenet: True    # MobileNetV2
+  ViT: False          # ViT 16 Base
+  custom: False       # Model from model.py file
+
 training:
-  use_wandb: True
+  use_wandb: False
   batch_size: 32
   epochs: 100
   early_stopping:
     monitor: val_loss
     patience: 4
-    save_path: "checkpoint/best_model.pth"
 
 data:
-  directory_root: "data/PlantVillage"
+  directory_root: "data/plantvillage dataset/color"
   augmentation:
     horizontal_flip: True
     rotation_range: 20
-    resize: 256
+    resize: 224
     random_rotation: 30
     normalize: true

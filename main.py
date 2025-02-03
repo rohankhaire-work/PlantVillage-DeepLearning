@@ -6,6 +6,7 @@ from executors.train import train_model, EarlyStopping
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 import torch
+import torchvision
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import torch.optim as optim
@@ -68,16 +69,59 @@ test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)   #
 
 lr = config["model"]["hyperparameters"]["optimizer"]["learning_rate"]
 num_classes = len(label_encoder.classes_)
-model = PlantDiseaseModel(num_classes).to(device)
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(model.parameters(), lr=lr)
-
 n_epochs = config["training"]["epochs"]
 
-early_stopping = EarlyStopping(patience=4, min_delta=0.01, save_path=config["training"]["early_stopping"]["save_path"])
-train_losses, valid_losses, valid_accuracies = train_model(
-    model, train_loader, valid_loader, criterion, optimizer, epochs=n_epochs, early_stopping=early_stopping, wandb_log=config["training"]["use_wandb"]
-)
+if config["transfer_learning"]["resnet"]:
+    # Uses custom CNN
+    model = torchvision.models.resnet50(weights='IMAGENET1K_V1')
+    for param in model.parameters():
+        param.requires_grad = False
 
-plot_learning_curve(train_losses, valid_losses, valid_accuracies)
+    # Parameters of newly constructed modules have requires_grad=True by default
+    num_ftrs = model.fc.in_features
+    model.fc = nn.Linear(num_ftrs, num_classes)
+    model = model.to(device)
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(model.parameters(), lr=lr)
+
+    early_stopping = EarlyStopping(patience=4, min_delta=0.01, save_path="checkpoint/resnet/best_model.pth")
+    train_losses, valid_losses, valid_accuracies = train_model(
+        model, train_loader, valid_loader, criterion, optimizer, epochs=n_epochs, early_stopping=early_stopping, wandb_log=config["training"]["use_wandb"]
+    )
+
+    plot_learning_curve(train_losses, valid_losses, valid_accuracies)
+
+if config["transfer_learning"]["mobilenet"]:
+    # Uses custom CNN
+    model = torchvision.models.mobilenet_v2(weights='IMAGENET1K_V1')
+    for param in model.parameters():
+        param.requires_grad = False
+
+    # Parameters of newly constructed modules have requires_grad=True by default
+    num_ftrs = model.classifier[1].in_features
+    model.classifier[1] = nn.Linear(num_ftrs, num_classes)
+    model = model.to(device)
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(model.parameters(), lr=lr)
+
+    early_stopping = EarlyStopping(patience=4, min_delta=0.01, save_path="checkpoint/mobilenet/best_model.pth")
+    train_losses, valid_losses, valid_accuracies = train_model(
+        model, train_loader, valid_loader, criterion, optimizer, epochs=n_epochs, early_stopping=early_stopping, wandb_log=config["training"]["use_wandb"]
+    )
+
+    plot_learning_curve(train_losses, valid_losses, valid_accuracies)
+
+if config["transfer_learning"]["custom"]:
+    # Uses custom CNN
+    model = PlantDiseaseModel(num_classes).to(device)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(model.parameters(), lr=lr)
+    early_stopping = EarlyStopping(patience=4, min_delta=0.01, save_path="checkpoint/custom/best_model.pth")
+    train_losses, valid_losses, valid_accuracies = train_model(
+        model, train_loader, valid_loader, criterion, optimizer, epochs=n_epochs, early_stopping=early_stopping, wandb_log=config["training"]["use_wandb"]
+    )
+
+    plot_learning_curve(train_losses, valid_losses, valid_accuracies)
 
