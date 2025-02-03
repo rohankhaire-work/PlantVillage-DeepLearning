@@ -1,7 +1,7 @@
 from dataloader.data_loader import PlantDiseaseDataset, load_images
 from model.model import PlantDiseaseModel
 from utils.plot import *
-from executors.train import train_model, EarlyStopping
+from executors.train import train_model, evaluate_model, EarlyStopping
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
@@ -76,7 +76,7 @@ n_epochs = config["training"]["epochs"]
 # Training models
 if config["transfer_learning"]["resnet"]:
     # make sure save path folder exists
-    save_path = "checkpoint/mobilenet"
+    save_path = "checkpoint/resnet"
     if not os.path.exists(save_path):
         os.makedirs(save_path)
 
@@ -99,6 +99,11 @@ if config["transfer_learning"]["resnet"]:
     )
 
     plot_learning_curve(train_losses, valid_losses, valid_accuracies)
+
+    # Evaluate model on test data
+    test_loss, test_accuracy = evaluate_model(model, test_loader, criterion)
+    print("Test loss: ", test_loss)
+    print("test accuracy: ", test_accuracy)
 
 if config["transfer_learning"]["mobilenet"]:
     # make sure save path folder exists
@@ -126,6 +131,11 @@ if config["transfer_learning"]["mobilenet"]:
 
     plot_learning_curve(train_losses, valid_losses, valid_accuracies)
 
+    # Evaluate model on test data
+    test_loss, test_accuracy = evaluate_model(model, test_loader, criterion)
+    print("Test loss: ", test_loss)
+    print("test accuracy: ", test_accuracy)
+
 if config["transfer_learning"]["custom"]:
     # make sure save path folder exists
     save_path = "checkpoint/mobilenet"
@@ -141,4 +151,9 @@ if config["transfer_learning"]["custom"]:
     )
 
     plot_learning_curve(train_losses, valid_losses, valid_accuracies)
+
+    # Evaluate model on test data
+    test_loss, test_accuracy = evaluate_model(model, test_loader, criterion)
+    print("Test loss: ", test_loss)
+    print("test accuracy: ", test_accuracy)
 

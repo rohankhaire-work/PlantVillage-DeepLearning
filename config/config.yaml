@@ -19,7 +19,7 @@ transfer_learning:
   custom: False       # Model from model.py file
 
 training:
-  use_wandb: False
+  use_wandb: True
   batch_size: 32
   epochs: 100
   early_stopping:

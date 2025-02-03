@@ -38,3 +38,6 @@ poetry run python main.py
 ```
 
 # Results
+| Model              | Test Accuracy |
+| :---------------- | :-----------:  |
+| Resnet50          |   91.86        |

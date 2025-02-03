@@ -144,7 +144,7 @@ if __name__ == "__main__":
     tuner = tune.Tuner(
         tune.with_resources(
             tune.with_parameters(train_model),
-            resources={"cpu": 10, "gpu": 1}
+            resources={"cpu": 2, "gpu": 1}
         ),
         tune_config=tune.TuneConfig(
             metric="loss",
