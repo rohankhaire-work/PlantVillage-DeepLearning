@@ -6,6 +6,7 @@ model:
     optimizer:
       type: SGD
       learning_rate: 0.001
+      momentum: 0.9
     loss: crossentropy
     metrics:
       - accuracy
