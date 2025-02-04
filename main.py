@@ -91,7 +91,7 @@ if config["transfer_learning"]["resnet"]:
     model = model.to(device)
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=lr)
+    optimizer = optim.SGD(model.parameters(), lr=lr, momentum=momentum)
 
     early_stopping = EarlyStopping(patience=4, min_delta=0.01, save_path=save_path + "/best_model.pth")
     train_losses, valid_losses, valid_accuracies = train_model(
@@ -144,7 +144,7 @@ if config["transfer_learning"]["custom"]:
     # Uses custom CNN
     model = PlantDiseaseModel(num_classes).to(device)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=lr)
+    optimizer = optim.SGD(model.parameters(), lr=lr, momentum=momentum)
     early_stopping = EarlyStopping(patience=4, min_delta=0.01, save_path=save_path + "/best_model.pth")
     train_losses, valid_losses, valid_accuracies = train_model(
         model, train_loader, valid_loader, criterion, optimizer, epochs=n_epochs, early_stopping=early_stopping, wandb_log=config["training"]["use_wandb"]

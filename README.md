@@ -40,4 +40,6 @@ poetry run python main.py
 # Results
 | Model              | Test Accuracy |
 | :---------------- | :-----------:  |
-| Resnet50          |   91.86        |
+| Resnet50          |   94.47        |
+| mobilenetv2       |   95.54        |
+| custom_CNN        |   97.21        |

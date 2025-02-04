@@ -128,8 +128,8 @@ if __name__ == "__main__":
 
     # hyperparameters to tune
     config = {
-        "momentum": tune.loguniform(1e-1, 1.0),
-        "lr": tune.loguniform(1e-4, 1e-1),
+        "momentum": tune.choice([0.1, 0.3, 0.5, 0.7, 0.9]),
+        "lr": tune.loguniform(1e-6, 1e-2),
         "batch_size": tune.choice([2, 4, 8, 16, 32]),
         "train_dataset": train_dataset,
         "val_dataset": valid_dataset,
