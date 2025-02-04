@@ -1,6 +1,7 @@
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from dataloader.data_loader import PlantDiseaseDataset, load_images
+import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision import transforms
@@ -11,8 +12,7 @@ from ray import tune
 from ray import train
 from ray.train import Checkpoint, get_checkpoint
 from ray.tune.schedulers import ASHAScheduler
-import ray.cloudpickle as pickle
-import tqdm
+from tqdm import tqdm
 import yaml
  
 def evaluate_model(model, data_loader, criterion):
@@ -38,15 +38,50 @@ def evaluate_model(model, data_loader, criterion):
 def train_model(config):
     train_losses, valid_losses, valid_accuracies = [], [], []
     epochs = 10
+    device = torch.device("cuda")
 
-    model = PlantDiseaseModel(config["classes"]).to(device)
+    # Load data
+    image_paths, labels = load_images("/home/PlantVillage-DeepLearning/data/plantvillage dataset/color")
+
+    # Encode labels as integers
+    label_encoder = LabelEncoder()
+    labels_encoded = label_encoder.fit_transform(labels)
+    num_classes = len(label_encoder.classes_)
+    # Train, validation, and test splits
+    train_paths, temp_paths, train_labels, temp_labels = train_test_split(
+        image_paths, labels_encoded, test_size=0.3, random_state=42, stratify=labels_encoded
+    )
+    valid_paths, test_paths, valid_labels, test_labels = train_test_split(
+        temp_paths, temp_labels, test_size=0.5, random_state=42, stratify=temp_labels
+    )
+
+    train_transform = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.RandomHorizontalFlip(),           # Data augmentation for training
+    transforms.RandomRotation(30),              # Random rotation for variability
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Standard normalization
+    ])
+
+    valid_test_transform = transforms.Compose([
+        transforms.Resize((224, 224)),              # Consistent resizing for validation/test
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Same normalization as training
+    ])
+
+    # Create datasets with appropriate transformations
+    train_dataset = PlantDiseaseDataset(train_paths, train_labels, transform=train_transform)
+    valid_dataset = PlantDiseaseDataset(valid_paths, valid_labels, transform=valid_test_transform)
+    test_dataset = PlantDiseaseDataset(test_paths, test_labels, transform=valid_test_transform)
+
+    model = PlantDiseaseModel(num_classes).to(device)
 
     # Create dataloaders
-    train_loader = DataLoader(config["train_dataset"], batch_size=int(config["batch_size"]), shuffle=True)  # Shuffle for training
-    valid_loader = DataLoader(config["val_dataset"], batch_size=int(config["batch_size"]), shuffle=True) # shuffle for validation/test
+    train_loader = DataLoader(train_dataset, batch_size=int(config["batch_size"]), shuffle=True)  # Shuffle for training
+    valid_loader = DataLoader(valid_dataset, batch_size=int(config["batch_size"]), shuffle=True) # shuffle for validation/test
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), lr=config["lr"], momentum=config["momentum"])
+    optimizer = optim.SGD(model.parameters(), lr=config["lr"], momentum=config["momentum"])
 
     for epoch in range(epochs):
         model.train()
@@ -88,52 +123,12 @@ def train_model(config):
 
 
 if __name__ == "__main__":
-    # Read the YAML file
-    with open('config/config.yaml', 'r') as file:
-        params = yaml.safe_load(file)
-    
-    # Load data
-    image_paths, labels = load_images(params["data"]["directory_root"])
-
-    # Encode labels as integers
-    label_encoder = LabelEncoder()
-    labels_encoded = label_encoder.fit_transform(labels)
-    num_classes = len(label_encoder.classes_)
-    # Train, validation, and test splits
-    train_paths, temp_paths, train_labels, temp_labels = train_test_split(
-        image_paths, labels_encoded, test_size=0.3, random_state=42, stratify=labels_encoded
-    )
-    valid_paths, test_paths, valid_labels, test_labels = train_test_split(
-        temp_paths, temp_labels, test_size=0.5, random_state=42, stratify=temp_labels
-    )
-
-    train_transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.RandomHorizontalFlip(),           # Data augmentation for training
-    transforms.RandomRotation(30),              # Random rotation for variability
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Standard normalization
-    ])
-
-    valid_test_transform = transforms.Compose([
-        transforms.Resize((224, 224)),              # Consistent resizing for validation/test
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Same normalization as training
-    ])
-
-    # Create datasets with appropriate transformations
-    train_dataset = PlantDiseaseDataset(train_paths, train_labels, transform=train_transform)
-    valid_dataset = PlantDiseaseDataset(valid_paths, valid_labels, transform=valid_test_transform)
-    test_dataset = PlantDiseaseDataset(test_paths, test_labels, transform=valid_test_transform)
 
     # hyperparameters to tune
     config = {
         "momentum": tune.choice([0.1, 0.3, 0.5, 0.7, 0.9]),
         "lr": tune.loguniform(1e-6, 1e-2),
         "batch_size": tune.choice([2, 4, 8, 16, 32]),
-        "train_dataset": train_dataset,
-        "val_dataset": valid_dataset,
-        "classes": num_classes,
     }
 
     scheduler = ASHAScheduler(
@@ -144,7 +139,7 @@ if __name__ == "__main__":
     tuner = tune.Tuner(
         tune.with_resources(
             tune.with_parameters(train_model),
-            resources={"cpu": 2, "gpu": 1}
+            resources={"cpu": 0, "gpu": 1}
         ),
         tune_config=tune.TuneConfig(
             metric="loss",
